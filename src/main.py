@@ -1,4 +1,5 @@
 import pulp 
+from itertools import combinations 
 
 def extraire(fichier: str) -> tuple[int, dict[int, tuple[float, float]], list[list[float]]]:
     coord = {}
@@ -81,11 +82,133 @@ def solve_mtz(distances : list[list[float]]):
     cost = sum(distances[tour[k]][tour[k+1]] for k in range(len(tour)-1))
     return cost, tour, selected
 
+
+def find_cycles(x_solution, n):
+    visited = [False] * n
+    cycles = []
+
+    for start in range(n):
+        if not visited[start]:
+            current = start
+            cycle = []
+
+            while not visited[current]:
+                visited[current] = True
+                cycle.append(current)
+
+                next_nodes = [j for (i,j) in x_solution if i == current and x_solution[(i,j)] > 0.5]
+                if not next_nodes:
+                    break
+                current = next_nodes[0]
+            
+            if len(cycle) >= 2:
+                cycles.append(cycle)
+    
+    return cycles
+
+def dfj_model(n, distances):
+    V = range(n)
+    model = pulp.LpProblem("DFJ", pulp.LpMinimize)
+
+    x = pulp.LpVariable.dicts(
+        "x", ((i,j) for i in V for j in V if i != j),
+        cat="Binary"
+    )
+
+    model += pulp.lpSum(distances[i][j] * x[(i,j)] for i in V for j in V if i != j)
+
+    for i in V: 
+        model += pulp.lpSum(x[(i,j)] for j in V if j != i) == 1
+
+    for j in V:
+        model += pulp.lpSum(x[(i,j)] for i in V if i != j) == 1
+
+    return model, x
+
+
+def solve_dfj_it(distances):
+    n = len(distances)
+    model, x = dfj_model(n, distances)
+
+    iteration = 0
+
+    while True:
+        model.solve(pulp.PULP_CBC_CMD(msg=False))
+
+        x_solution = {(i,j): pulp.value(x[(i,j)])
+                    for (i, j) in x}
+        
+        cycles = find_cycles(x_solution, n)
+
+        if len(cycles) == 1 and len(cycles[0]) == n:
+            print("sol optimale trouvée.")
+            break
+
+        for S in cycles:
+            if len(S) >= 2 and len(S) < n:
+                model += (
+                    pulp.lpSum(x[(i,j)]
+                               for i in S for j in S if i != j)
+                    <= len(S) - 1
+                )
+        
+        iteration += 1
+
+    return cycles[0], pulp.value(model.objective)
+
+def solve_dfj_enum(distances):
+    n = len(distances)
+    V = range(n)
+
+    model = pulp.LpProblem("DFJ_ENUM", pulp.LpMinimize)
+
+    x = pulp.LpVariable.dicts(
+        "x",
+        ((i,j) for i in V for j in V if i != j),
+        lowBound=0,
+        upBound=1,
+        cat="Binary"
+    )
+
+    model += pulp.lpSum(distances[i][j] * x[(i, j)]
+                        for i in V for j in V if i != j)
+    
+    for i in V:
+        model += pulp.lpSum(x[(i, j)] for j in V if j != i) == 1
+
+    for j in V:
+        model += pulp.lpSum(x[(i, j)] for i in V if i != j) == 1
+
+    for k in range(2, n):
+        for S in combinations(V, k):
+            S = list(S)
+            model += (
+                pulp.lpSum(
+                    x[(i, j)] for i in S for j in S if i != j
+                ) <= k - 1
+            )
+
+    cost = model.solve(pulp.PULP_CBC_CMD(msg=False))
+    cost = pulp.value(model.objective)
+
+    return cost, x
+
 if __name__ == "__main__":
-    fichier = "../instances/instance_10_circle_1.txt"
+    fichier = "../instances/instance_10_euclidean_1.txt"
     distances = extraire(fichier)[2]
     cost, tour, arcs = solve_mtz(distances)
 
+
+    cycles, value = solve_dfj_it(distances)
+    print(cycles, value)
+
+    print("+++++")
+    
+    costB, x = solve_dfj_enum(distances)
+    print(costB)
+
+    print("+++++")
+     
     if tour is None:
         print("Statut non optimal.")
     else:
