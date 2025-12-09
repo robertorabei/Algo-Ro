@@ -18,7 +18,7 @@ def extraire(fichier: str) -> tuple[int, dict[int, tuple[float, float]], list[li
             row = [float(v) for v in ligne.split()]
             distances.append(row)
 
-    return distances
+    return n, distances
 
 def solve_mtz(distances: list[list[float]], relaxed: bool = False):
     n = len(distances)
@@ -65,7 +65,7 @@ def solve_mtz(distances: list[list[float]], relaxed: bool = False):
     solve_time = time.time() - start_time
 
     if pulp.LpStatus[status] != "Optimal":
-        return None, None, solve_time
+        return None, None, solve_time, model.numVariables(), model.numConstraints()
 
     obj_value = pulp.value(model.objective)
     
@@ -85,7 +85,7 @@ def solve_mtz(distances: list[list[float]], relaxed: bool = False):
                 break
         tour.append(0) 
 
-    return obj_value, tour, solve_time
+    return obj_value, tour, solve_time, model.numVariables(), model.numConstraints()
 
 def find_cycles(x_solution, n):
     visited = [False] * n
@@ -146,7 +146,7 @@ def solve_dfj_it(distances: list[list[float]]):
 
         if pulp.LpStatus[status] != "Optimal":
             print(f"Statut non optimal à l'itération {iteration}")
-            return None, None, total_solve_time, iteration
+            return None, None, total_solve_time, iteration, model.numVariables(), model.numConstraints()
 
         x_solution = {(i, j): pulp.value(x[(i, j)]) for (i, j) in x}
         
@@ -156,7 +156,7 @@ def solve_dfj_it(distances: list[list[float]]):
             tour = cycles[0]
             tour.append(tour[0])
             obj_value = pulp.value(model.objective)
-            return obj_value, tour, total_solve_time, iteration
+            return obj_value, tour, total_solve_time, iteration, model.numVariables(), model.numConstraints()
 
         for S in cycles:
             if len(S) < n:
@@ -220,5 +220,5 @@ def solve_dfj_enum(distances: list[list[float]], relaxed: bool = False):
                 break
         tour.append(0)
 
-    return obj_value, tour, solve_time
+    return obj_value, tour, solve_time, model.numVariables(), model.numConstraints()
 

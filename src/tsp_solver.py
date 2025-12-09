@@ -1,6 +1,7 @@
 from solvers import extraire, solve_mtz, solve_dfj_it, solve_dfj_enum
 import sys
-import argparse
+
+
 
 def main():
     filename = sys.argv[1]
@@ -13,19 +14,19 @@ def main():
 
     if f == 0:
         method_name = "MTZ (Entier)"
-        obj, tour, solve_time = solve_mtz(distances, False)
+        obj, tour, solve_time, n, _ , _ = solve_mtz(distances, False)
     elif f == 1:
         method_name = "MTZ (Relaxé)"
-        obj, tour, solve_time = solve_mtz(distances, True)
+        obj, tour, solve_time, n, _ , _ = solve_mtz(distances, True)
     elif f == 2:
         method_name = "DFJ Enumératif (Entier)"
-        obj, tour, solve_time = solve_dfj_enum(distances, False)
+        obj, tour, solve_time, n, _ , _ = solve_dfj_enum(distances, False)
     elif f == 3:
         method_name = "DFJ Enumératif (Relaxé)"
-        obj, tour, solve_time = solve_dfj_enum(distances, True)
+        obj, tour, solve_time, n, _ , _ = solve_dfj_enum(distances, True)
     elif f == 4:
         method_name = "DFJ Itératif"
-        obj, tour, solve_time, iterations = solve_dfj_it(distances)
+        obj, tour, solve_time, iterations, _ , _ = solve_dfj_it(distances)
     
 
     print(f"Méthode: {method_name}")
