@@ -1,9 +1,0 @@
-instance,formulation,obj_int,time_int,obj_relax,time_relax,gap,vars,constr
-instance_10_line_1,MTZ,156.14,1.684,81.49,0.0305,0.4781,110,103
-instance_10_line_1,DFJ_iter,156.14,0.1592,-,-,-,90,33
-instance_10_line_1,DFJ_enum,156.14,0.1016,156.14,0.0629,-0.0,90,1032
-instance_12_circle_1,MTZ,265.22,1.4158,176.08,0.0333,0.3361,156,147
-instance_12_circle_1,DFJ_iter,265.22,0.1592,-,-,-,132,39
-instance_12_circle_1,DFJ_enum,265.22,0.4364,265.22,0.2286,0.0,132,4106
-instance_20_random_sym_1,MTZ,371.1,7.3653,356.43,0.0388,0.0395,420,403
-instance_20_random_sym_1,DFJ_iter,371.1,0.3553,-,-,-,380,59
