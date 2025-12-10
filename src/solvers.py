@@ -2,7 +2,7 @@ import pulp
 from itertools import combinations 
 import time
 
-def extraire(fichier: str) -> tuple[int, dict[int, tuple[float, float]], list[list[float]]]:
+def extraire(fichier: str) -> tuple[int, list[list[float]]]:
     """
     Extrait les données importantes d'une instance 
     Args: 
@@ -136,37 +136,6 @@ def find_cycles(x_solution, n) -> list[list[int]]:
     
     return cycles
 
-def dfj_model(n, distances) -> tuple[pulp.LpProblem, dict[tuple[int, int], pulp.LpVariable]]:
-    """
-    Crée le modèle DFJ pour la formulation de base sans contraintes de sous-tours.
-    Args:
-        n (int): nombre de villes
-        distances (list[list[float]]): matrice des distances entre les villes
-    Returns:
-        model (pulp.LpProblem): modèle linéaire
-        x (dict[tuple[int, int], pulp.LpVariable]): variables de décision x_ij
-    """
-    nodes = list(range(n))
-    model = pulp.LpProblem("DFJ", pulp.LpMinimize)
-
-    # variables
-    x = pulp.LpVariable.dicts(
-        "x", ((i,j) for i in nodes for j in nodes if i != j),
-        cat="Binary"
-    )
-
-    # fonction objectif
-    model += pulp.lpSum(distances[i][j] * x[(i,j)] for i in nodes for j in nodes if i != j)
-    
-    # contraintes de degré 
-    for i in nodes: 
-        model += pulp.lpSum(x[(i,j)] for j in nodes if j != i) == 1
-
-    for j in nodes:
-        model += pulp.lpSum(x[(i,j)] for i in nodes if i != j) == 1
-
-    return model, x
-
 def solve_dfj_it(distances: list[list[float]]) -> tuple[float, list[int], float, int, int, int]:
     """
     Résout le TSP en utilisant la formulation DFJ itérative.
@@ -178,21 +147,37 @@ def solve_dfj_it(distances: list[list[float]]) -> tuple[float, list[int], float,
         total_solve_time (float): temps de résolution total en secondes
         iteration (int): nombre d'itérations effectuées
         num_vars (int): nombre de variables dans le modèle
-        num_constr (int): nombre de contraintes dans le modèle     
+        num_constr (int): nombre de contraintes dans le modèle final
     """
     n = len(distances)
+    nodes = list(range(n))
+
+    model = pulp.LpProblem("DFJ_Iterative", pulp.LpMinimize)
+
+    # variables de décision 
+    x = pulp.LpVariable.dicts(
+        "x", ((i,j) for i in nodes for j in nodes if i != j),
+        cat="Binary"
+    )
+
+    # fonction objectif
+    model += pulp.lpSum(distances[i][j] * x[(i,j)] for i in nodes for j in nodes if i != j)
     
-    # importation du modèle de base
-    model, x = dfj_model(n, distances)
-    
-    # variables pour le suivi du temps et des itérations
+    # contraintes de degré (entrants et sortants)
+    for i in nodes: 
+        model += pulp.lpSum(x[(i,j)] for j in nodes if j != i) == 1
+
+    for j in nodes:
+        model += pulp.lpSum(x[(i,j)] for i in nodes if i != j) == 1
+
+    # boucle itérative 
     total_solve_time = 0.0
     iteration = 0
     
     while True:
         iteration += 1
 
-        # addition des temps de résolution
+        # time le solveur  
         start_t = time.time()
         status = model.solve(pulp.PULP_CBC_CMD(msg=False))
         end_t = time.time()        
@@ -203,20 +188,20 @@ def solve_dfj_it(distances: list[list[float]]) -> tuple[float, list[int], float,
             print(f"Statut non optimal à l'itération {iteration}")
             return None, None, total_solve_time, iteration, model.numVariables(), model.numConstraints()
 
-        # extraction de la solution
+        # extraction de la solution courante
         x_solution = {(i, j): pulp.value(x[(i, j)]) for (i, j) in x}
         
-        # recherche des cycles
+        # recherche des cycles avec find_cycles
         cycles = find_cycles(x_solution, n)
         
-        # si un cycle hamiltonien est trouvé, on termine
+        # condition d'arrêt : si un seul cycle de longueur n est trouvé 
         if len(cycles) == 1 and len(cycles[0]) == n:
             tour = cycles[0]
             tour.append(tour[0])
             obj_value = pulp.value(model.objective)
             return obj_value, tour, total_solve_time, iteration, model.numVariables(), model.numConstraints()
 
-        # sinon, on ajoute les contraintes d'élimination de sous-tours
+        # ajout des contraintes d'élimination de sous-tours
         for S in cycles:
             if len(S) < n:
                 model += (
@@ -294,4 +279,3 @@ def solve_dfj_enum(distances: list[list[float]], relaxed: bool = False) -> tuple
         tour.append(0)
 
     return obj_value, tour, solve_time, model.numVariables(), model.numConstraints()
-
